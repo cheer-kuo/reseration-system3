@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>大貨梯及裝卸碼頭預約系統</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { text-align: center; }
+    .form-section, .list-section { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+    label { display: block; margin-top: 10px; }
+    input, select, button { margin-top: 5px; padding: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>大貨梯及裝卸碼頭預約系統</h1>
+
+  <div class="form-section">
+    <h2>新增預約</h2>
+    <label>場地:
+      <select id="venue">
+        <option value="大貨梯">大貨梯</option>
+        <option value="裝卸碼頭">裝卸碼頭</option>
+      </select>
+    </label>
+    <label>日期: <input type="date" id="date"></label>
+    <label>開始時間:
+      <select id="startTime"></select>
+    </label>
+    <label>結束時間:
+      <select id="endTime"></select>
+    </label>
+    <label>使用單位: <input type="text" id="unit"></label>
+    <label>預約者: <input type="text" id="reserver"></label>
+    <label>聯絡人電話: <input type="text" id="phone"></label>
+    <label>預約密碼: <input type="password" id="resPassword"></label>
+    <button onclick="addReservation()">新增</button>
+  </div>
+
+  <div class="list-section">
+    <h2>所有預約</h2>
+    <label>選擇日期查看: <input type="date" id="filterDate" onchange="loadReservations()"></label>
+    <label>選擇場地查看:
+      <select id="filterVenue" onchange="loadReservations()">
+        <option value="">全部</option>
+        <option value="大貨梯">大貨梯</option>
+        <option value="裝卸碼頭">裝卸碼頭</option>
+      </select>
+    </label>
+    <table id="reservationTable">
+      <thead>
+        <tr><th>日期</th><th>場地</th><th>時間</th><th>使用單位</th><th>預約者</th><th>電話</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_kwtvacd5uBRZpGgW0NmOXuEJtpH8JZYBUmHXF-cm5KVuIagxSiEjahq8wBP28Lmt2Q/exec";
+
+    // 產生時間選單 (07:00 ~ 19:00)
+    function generateTimeOptions() {
+      const startSel = document.getElementById('startTime');
+      const endSel = document.getElementById('endTime');
+      for (let h = 7; h <= 19; h++) {
+        const time = (h < 10 ? '0' : '') + h + ":00";
+        const opt1 = document.createElement('option'); opt1.value = time; opt1.text = time;
+        const opt2 = document.createElement('option'); opt2.value = time; opt2.text = time;
+        startSel.add(opt1); endSel.add(opt2);
+      }
+    }
+
+    // 新增預約
+    function addReservation() {
+      const venue = document.getElementById('venue').value;
+      const date = document.getElementById('date').value;
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      const unit = document.getElementById('unit').value;
+      const reserver = document.getElementById('reserver').value;
+      const phone = document.getElementById('phone').value;
+      const resPassword = document.getElementById('resPassword').value;
+
+      if (!date || !start || !end || !unit || !reserver || !phone || !resPassword) {
+        return alert("請完整填寫");
+      }
+
+      const startHour = parseInt(start.split(':')[0]);
+      const endHour = parseInt(end.split(':')[0]);
+      if (endHour <= startHour) return alert("結束時間必須大於開始時間");
+      if (endHour - startHour > 4) return alert("一次最多可預約 4 小時");
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: new URLSearchParams({
+          action: 'add',
+          venue, date, start, end, unit, reserver, phone, resPassword
+        })
+      })
+      .then(res => res.text())
+      .then(msg => {
+        alert(msg);
+        loadReservations();
+      });
+    }
+
+    // 載入所有預約
+    function loadReservations() {
+      const filterDate = document.getElementById('filterDate').value;
+      const filterVenue = document.getElementById('filterVenue').value;
+
+      fetch(SCRIPT_URL + "?action=list")
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.querySelector('#reservationTable tbody');
+          tbody.innerHTML = '';
+          data
+            .filter(r => (!filterDate || r.date === filterDate) && (!filterVenue || r.venue === filterVenue))
+            .forEach(r => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `<td>${r.date}</td><td>${r.venue}</td><td>${r.start} - ${r.end}</td><td>${r.unit}</td><td>${r.reserver}</td><td>${r.phone}</td>`;
+              tbody.appendChild(tr);
+            });
+        });
+    }
+
+    generateTimeOptions();
+    loadReservations();
+  </script>
+</body>
+</html>
